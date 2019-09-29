@@ -8,7 +8,9 @@ import os
 class TLClassifier(object):
     def __init__(self):
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.ssd_graph_file = dir_path + '/ssd_mobilenet_v1_coco_11_06_2017/frozen_inference_graph.pb'
+        
+        # Use pre built model (from https://github.com/ChristianSAW/CarND-Capstone/tree/master/ros/src/tl_detector/models/ssd_sim) 
+        self.ssd_graph_file = dir_path + '/model/frozen_inference_graph.pb'
         self.detection_graph = tf.Graph()
         with self.detection_graph.as_default():
             od_graph_def = tf.GraphDef()
@@ -16,34 +18,21 @@ class TLClassifier(object):
                 serialized_graph = fid.read()
                 od_graph_def.ParseFromString(serialized_graph)
                 tf.import_graph_def(od_graph_def, name='')
+            # The input placeholder for the image.
+            # `get_tensor_by_name` returns the Tensor with the associated name in the Graph.
+            self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
 
-        self.sess = tf.Session(graph=self.detection_graph)
-        # The input placeholder for the image.
-        # `get_tensor_by_name` returns the Tensor with the associated name in the Graph.
-        self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
+            # Each box represents a part of the image where a particular object was detected.
+            self.detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
 
-        # Each box represents a part of the image where a particular object was detected.
-        self.detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
+            # Each score represent how level of confidence for each of the objects.
+            # Score is shown on the result image, together with the class label.
+            self.detection_scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
 
-        # Each score represent how level of confidence for each of the objects.
-        # Score is shown on the result image, together with the class label.
-        self.detection_scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
-
-        # The classification of the object (integer id).
-        self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
+            # The classification of the object (integer id).
+            self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
         
-    def filter_boxes(self, min_score, boxes, scores, classes):
-        """Return boxes with a confidence >= `min_score`"""
-        n = len(classes)
-        idxs = []
-        for i in range(n):
-            if scores[i] >= min_score:
-                idxs.append(i)
-    
-        filtered_boxes = boxes[idxs, ...]
-        filtered_scores = scores[idxs, ...]
-        filtered_classes = classes[idxs, ...]
-        return filtered_boxes, filtered_scores, filtered_classes
+        self.sess = tf.Session(graph=self.detection_graph)
     
     def get_classification(self, image):
         """Determines the color of the traffic light in the image
@@ -56,21 +45,28 @@ class TLClassifier(object):
 
         """
 
-        boxes, scores, classes = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes],
-                                              feed_dict = {self.image_tensor: np.expand_dims(image, axis = 0)})
+        with self.detection_graph.as_default():
+            boxes, scores, classes = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes],
+                                                    feed_dict = {self.image_tensor: np.expand_dims(image, axis = 0)})
 
         boxes   = np.squeeze(boxes)
         scores  = np.squeeze(scores)
         classes = np.squeeze(classes)
-        
-        confidence_cutoff = 0.0
-        # Filter boxes with a confidence score less than `confidence_cutoff`
-        boxes, scores, classes = self.filter_boxes(confidence_cutoff, boxes, scores, classes)
-        
+       
+        confidence_cutoff = 0.2
         if scores is None:
             print("none")
             return TrafficLight.UNKNOWN
-        return classes[0]-1
+        if scores[0] >= confidence_cutoff:
+            if classes[0] == 1:
+                print("green")
+                return TrafficLight.GREEN
+            elif classes[0] == 2:
+                print("red")
+                return TrafficLight.RED
+            elif classes[0] == 3:
+                print("yellow")
+                return TrafficLight.YELLOW
 
 
         
