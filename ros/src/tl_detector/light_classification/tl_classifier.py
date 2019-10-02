@@ -9,7 +9,7 @@ class TLClassifier(object):
     def __init__(self):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         
-        # Use pre built model (from https://github.com/ChristianSAW/CarND-Capstone/tree/master/ros/src/tl_detector/models/ssd_sim) 
+        # Used pre built model (from https://github.com/ChristianSAW/CarND-Capstone/tree/master/ros/src/tl_detector/models/ssd_sim) 
         self.ssd_graph_file = dir_path + '/model/frozen_inference_graph.pb'
         self.detection_graph = tf.Graph()
         with self.detection_graph.as_default():
@@ -21,9 +21,6 @@ class TLClassifier(object):
             # The input placeholder for the image.
             # `get_tensor_by_name` returns the Tensor with the associated name in the Graph.
             self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
-
-            # Each box represents a part of the image where a particular object was detected.
-            self.detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
 
             # Each score represent how level of confidence for each of the objects.
             # Score is shown on the result image, together with the class label.
@@ -46,26 +43,21 @@ class TLClassifier(object):
         """
 
         with self.detection_graph.as_default():
-            boxes, scores, classes = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes],
-                                                    feed_dict = {self.image_tensor: np.expand_dims(image, axis = 0)})
+             scores, classes = self.sess.run([self.detection_scores, self.detection_classes],
+                                              feed_dict = {self.image_tensor: np.expand_dims(image, axis = 0)})
 
-        boxes   = np.squeeze(boxes)
         scores  = np.squeeze(scores)
         classes = np.squeeze(classes)
        
-        confidence_cutoff = 0.2
+        confidence_cutoff = 0.7
         if scores is None:
-            print("none")
             return TrafficLight.UNKNOWN
         if scores[0] >= confidence_cutoff:
             if classes[0] == 1:
-                print("green")
                 return TrafficLight.GREEN
             elif classes[0] == 2:
-                print("red")
                 return TrafficLight.RED
             elif classes[0] == 3:
-                print("yellow")
                 return TrafficLight.YELLOW
 
 
