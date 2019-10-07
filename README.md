@@ -2,7 +2,7 @@
 
 This is the project repo for the final project of the Udacity Self-Driving Car Nanodegree: Programming a Real Self-Driving Car.
 
-### by Mehmet Yildirim
+### by Mehmet Yildirim mail: [mehmety888@gmail.com](mehmety888@gmail.com)
 
 ### Native Installation
 
